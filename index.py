@@ -3,7 +3,7 @@ import streamlit as st
 # ページ設定
 st.set_page_config(page_title="Manga Prompt Generator", layout="wide")
 
-st.title("漫画プロンプト作成ツール (改善版)")
+st.title("漫画プロンプト作成ツール (最終修正版)")
 st.markdown("PyYAMLを使わず、標準機能のみで安全にYAMLプロンプトを生成します。")
 
 # --- セッション状態の初期化 ---
@@ -109,13 +109,12 @@ def make_yaml_text(data_dict):
             if panel["characters"]:
                 add_line("  characters :", 2)
                 for p_char in panel["characters"]:
-                    # nameが空文字の場合でも出力する
                     add_line(f'- name : "{p_char["name"]}"', 3)
                     add_line(f'  panel_position : "{p_char["panel_position"]}"', 3)
-                    add_line(f'  emotion : "{p_char.get("emotion", "")}"', 3)
+                    add_line(f'  emotion : "{p_char["emotion"]}"', 3) # 修正: 必ずキーを出力
                     add_line(f'  facing : "{p_char["facing"]}"', 3)
                     add_line(f'  shot : "{p_char["shot"]}"', 3)
-                    add_line(f'  pose : "{p_char.get("pose", "")}"', 3)
+                    add_line(f'  pose : "{p_char["pose"]}"', 3) # 修正: 必ずキーを出力
                     
                     # Lines
                     if p_char["lines"]:
@@ -129,8 +128,13 @@ def make_yaml_text(data_dict):
             else:
                 add_line("  characters : []", 2)
             
-            # Effects
-            add_line("  effects : []", 2)
+            # Effects (修正: effectsの内容をリストとして出力)
+            if panel["effects"]:
+                add_line("  effects :", 2)
+                for effect in panel["effects"]:
+                    add_line(f'- name : "{effect["name"]}"', 3)
+            else:
+                add_line("  effects : []", 2)
 
             # Monologues
             if panel["monologues"]:
@@ -155,7 +159,7 @@ tab1, tab2, tab3 = st.tabs(["① キャラクター登録", "② パネル(コ�
 with tab1:
     st.header("登場キャラクターの定義")
     with st.form("add_char_form", clear_on_submit=True):
-        c_name = st.text_input("キャラクター名 (name)", placeholder="例: AIちゃん")
+        c_name = st.text_input("キャラクター名 (name)", placeholder="例: るー")
         c_prompt = st.text_area("外見プロンプト (base_prompt)", placeholder="例: 1girl, solo, she is 5 years old...")
         submitted = st.form_submit_button("キャラクターを追加")
         if submitted and c_name:
@@ -183,22 +187,27 @@ with tab2:
     with st.expander("新しいコマを作成する", expanded=True):
         p_num = len(st.session_state.panels) + 1
         
-        # --- コマの基本設定 ---
+        # --- 1. コマの基本設定 ---
         st.subheader("1. コマの基本設定")
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             p_pos = st.selectbox("ページ内の位置", ["top", "middle", "bottom", "top-right", "top-left", "bottom-right", "bottom-left"], key="new_p_pos")
-            p_bg = st.text_area("背景", placeholder="例: 揺れるカーテンから差し込む朝日", key="new_p_bg")
+            p_bg = st.text_area("背景", placeholder="例: 暗い部屋に煌々と光るPCの画面", key="new_p_bg")
         with col_p2:
             p_cam = st.text_input("カメラアングル", placeholder="例: from side, front", key="new_p_cam")
-            p_desc = st.text_input("状況説明", placeholder="例: 朝が来た", key="new_p_desc")
+            p_desc = st.text_input("状況説明", placeholder="例: ナノバナナProが世間を賑わしている", key="new_p_desc")
         
         p_obj_str = st.text_input("配置オブジェクト (カンマ区切り)", placeholder="例: マグカップ, スマホ", key="new_p_obj")
+        
+        # --- 2. 効果線・特殊効果 (Effects) ---
+        st.subheader("2. 効果線・特殊効果 (Effects)")
+        # 修正: effectsの入力フォームを追加
+        p_effect_str = st.text_input("効果線・効果 (カンマ区切り、effects)", placeholder="例: 集中線, スピード線", key="new_p_effect")
 
         st.markdown("---")
         
-        # --- キャラクター・セリフ設定 ---
-        st.subheader("2. キャラクターとセリフの追加")
+        # --- 3. キャラクター・セリフ設定 ---
+        st.subheader("3. キャラクターとセリフの追加")
         
         if "temp_panel_chars" not in st.session_state:
             st.session_state.temp_panel_chars = []
@@ -207,18 +216,16 @@ with tab2:
         
         # 入力フォーム
         with st.container():
-            # 話者（キャラクター）選択
             tp_name = st.selectbox("話者選択（空白なら名前なし）", [""] + reg_char_names, key="tp_name")
             
-            # --- セリフ設定エリア ---
+            # セリフ設定エリア
             col_l1, col_l2 = st.columns([3, 1])
             with col_l1:
                 tp_line = st.text_input("セリフ内容", placeholder="例：なのばなな…ぷろ？", key="tp_line")
             with col_l2:
-                # 【改善点①】吹き出し位置の選択
                 tp_text_pos = st.selectbox("吹き出し位置", ["right", "center", "left"], index=0, key="tp_text_pos")
 
-            # --- 外見設定エリア（トグルで見やすく） ---
+            # 外見設定エリア（修正: emotionとposeの入力フォームを追加）
             st.caption("▼ 外見設定（「キャラ＋セリフを追加」ボタンを押したときのみ反映されます）")
             col_v1, col_v2, col_v3 = st.columns(3)
             with col_v1:
@@ -226,10 +233,15 @@ with tab2:
             with col_v2:
                 tp_shot = st.selectbox("ショット", ["バストアップ", "顔のアップ", "全身", "ニーアップ"], key="tp_shot")
             with col_v3:
-                tp_face = st.text_input("表情/向き", placeholder="PCを見ている", key="tp_face")
+                tp_face = st.text_input("表情/向き (facing)", placeholder="PCを見ている", key="tp_face")
+            
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                tp_emotion = st.text_input("感情 (emotion)", placeholder="@_@", key="tp_emotion") # 修正
+            with col_e2:
+                tp_pose = st.text_input("ポーズ (pose)", placeholder="パソコンの前で座っている", key="tp_pose") # 修正
 
             # --- 追加ボタンエリア ---
-            # 【改善点②】追加ボタンを2つに分離
             col_btn1, col_btn2 = st.columns(2)
             
             # ボタンA: キャラとセリフ両方追加
@@ -239,7 +251,8 @@ with tab2:
                     "panel_position": tp_pos,
                     "shot": tp_shot,
                     "facing": tp_face,
-                    "pose": "",
+                    "emotion": tp_emotion, # 修正: 入力値を反映
+                    "pose": tp_pose,       # 修正: 入力値を反映
                     "lines": [{"text": tp_line, "char_text_position": tp_text_pos, "type": "speech"}] if tp_line else []
                 })
 
@@ -247,44 +260,40 @@ with tab2:
             if col_btn2.button("💬 セリフ(吹き出し)のみ追加"):
                 # 外見データを空文字にして追加
                 st.session_state.temp_panel_chars.append({
-                    "name": tp_name, # 名前は紐づける（誰のセリフか）
+                    "name": tp_name, 
                     "panel_position": "",
                     "shot": "",
                     "facing": "",
-                    "pose": "",
+                    "emotion": "", # 修正: 空文字で固定
+                    "pose": "",      # 修正: 空文字で固定
                     "lines": [{"text": tp_line, "char_text_position": tp_text_pos, "type": "speech"}]
                 })
 
-            # --- 追加済みリスト表示 ---
+            # 追加済みリスト表示
             if st.session_state.temp_panel_chars:
                 st.info("このコマに追加される要素:")
                 for idx, tc in enumerate(st.session_state.temp_panel_chars):
-                    # 表示用にわかりやすく整形
                     disp_name = tc['name'] if tc['name'] else "（名前なし）"
-                    if tc['panel_position']:
-                        type_label = "【キャラ＋セリフ】"
-                        detail = f"{tc['shot']} / {tc['facing']}"
-                    else:
-                        type_label = "【吹き出しのみ】"
-                        detail = "外見指定なし"
-                    
+                    type_label = "【キャラ＋セリフ】" if tc['panel_position'] else "【吹き出しのみ】"
                     line_text = tc['lines'][0]['text'] if tc['lines'] else "（セリフなし）"
                     line_pos = tc['lines'][0]['char_text_position'] if tc['lines'] else "-"
-                    
-                    st.text(f"{idx+1}. {type_label} {disp_name}: 「{line_text}」 (位置:{line_pos})")
+                    st.text(f"- {idx+1}. {type_label} {disp_name}: 「{line_text}」 (位置:{line_pos})")
                 
                 if st.button("追加リストをクリア"):
                     st.session_state.temp_panel_chars = []
 
         st.markdown("---")
         
-        # --- モノローグ ---
-        st.subheader("3. その他 (モノローグ)")
+        # --- 4. その他 (モノローグ) ---
+        st.subheader("4. その他 (モノローグ)")
         p_mono = st.text_input("モノローグ内容", placeholder="例: 早すぎて追いつかない", key="new_p_mono")
         
         # --- 決定ボタン ---
         if st.button("この内容でコマを確定・追加", type="primary"):
             objects_list = [{"name": x.strip()} for x in p_obj_str.split(",")] if p_obj_str else []
+            # 修正: effectsの入力文字列をリストに変換
+            effects_list = [{"name": x.strip()} for x in p_effect_str.split(",")] if p_effect_str else []
+            
             monologues_list = []
             if p_mono:
                 monologues_list.append({
@@ -299,14 +308,14 @@ with tab2:
                 "background": p_bg,
                 "description": p_desc,
                 "objects": objects_list,
-                "characters": st.session_state.temp_panel_chars, # リストをそのままコピー
-                "effects": [],
+                "characters": st.session_state.temp_panel_chars,
+                "effects": effects_list, # 修正: 反映
                 "monologues": monologues_list,
                 "camera_angle": p_cam
             }
             
             st.session_state.panels.append(new_panel)
-            st.session_state.temp_panel_chars = [] # リセット
+            st.session_state.temp_panel_chars = []
             st.success(f"Panel {p_num} を追加しました！")
             st.rerun()
 
@@ -316,12 +325,11 @@ with tab2:
         with st.expander(f"Panel {p['number']}: {p['description']}"):
             st.text(f"位置: {p['page_position']}")
             st.text(f"背景: {p['background']}")
-            # キャラ内容の簡易表示
             if p['characters']:
                 st.caption("含まれるキャラ/セリフ:")
                 for c in p['characters']:
                     l = c['lines'][0]['text'] if c['lines'] else ""
-                    st.text(f"- {c['name']}: {l}")
+                    st.text(f"- {c['name']} (E:{c['emotion']}/P:{c['pose']}): {l}")
             
             if st.button("このパネルを削除", key=f"del_panel_{i}"):
                 st.session_state.panels.pop(i)
