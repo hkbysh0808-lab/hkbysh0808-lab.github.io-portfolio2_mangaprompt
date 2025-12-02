@@ -3,8 +3,8 @@ import streamlit as st
 # ページ設定
 st.set_page_config(page_title="Manga Prompt Generator", layout="wide")
 
-st.title("漫画プロンプト作成ツール (標準ライブラリ版)")
-st.markdown("PyYAMLを使わず、標準機能のみで安全にYAMLプロンプトを生成します。")
+st.title("AI漫画プロンプト作成ツール")
+st.markdown("下記のフォームに合わせていくだけでプロンプトが作成できます。")
 
 # --- セッション状態の初期化 ---
 if "character_infos" not in st.session_state:
@@ -39,11 +39,11 @@ st.sidebar.info("""
 - Aspect Ratio: 1:1.41
 """)
 
-# 固定テキストブロック
-INSTRUCTIONS_BLOCK = """このYAMLは漫画ページの仕様です。添付の画像データ（キャラクター等、コマ割り画像）がある場合は、
+# 定型の部分
+introduction = """このYAMLは漫画ページの仕様です。添付の画像データ（キャラクター、コマ割り画像等）がある場合は、
 それらを外見の基準として忠実に反映し、このプロンプトの指示に従ってページを生成してください。"""
 
-LAYOUT_CONSTRAINTS_BLOCK = """指示: 以下のレイアウト制約を厳守して画像を生成してください。
+layouts = """指示: 以下のレイアウト制約を厳守して画像を生成してください。
 - ページ全体のアスペクト比は 1:1.4（幅:高さ）を絶対に厳守する。
 - パネルの追加・削除・結合・回転・順序入替えは禁止。
 - 各パネルの内容は必ず枠内に収める。
@@ -155,7 +155,7 @@ tab1, tab2, tab3 = st.tabs(["① キャラクター登録", "② パネル(コ�
 with tab1:
     st.header("登場キャラクターの定義")
     with st.form("add_char_form", clear_on_submit=True):
-        c_name = st.text_input("キャラクター名 (name)", placeholder="例: るー")
+        c_name = st.text_input("キャラクター名 (name)", placeholder="例: ai")
         c_prompt = st.text_area("外見プロンプト (base_prompt)", placeholder="例: 1girl, solo, she is 5 years old...")
         submitted = st.form_submit_button("キャラクターを追加")
         if submitted and c_name:
@@ -297,8 +297,8 @@ with tab3:
                 "writing-mode": "vertical-rl",
                 "color_mode": color_mode_val,
                 "aspect_ratio": "1:1.41",
-                "instructions": INSTRUCTIONS_BLOCK,
-                "layout_constraints": LAYOUT_CONSTRAINTS_BLOCK,
+                "instructions": introduction,
+                "layout_constraints": layouts,
                 "character_infos": st.session_state.character_infos,
                 "panels": st.session_state.panels
             }
